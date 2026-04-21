@@ -14,9 +14,11 @@ async def portfolio_analyze(
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Please upload a CSV file")
     raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Uploaded CSV is empty")
     try:
         return analyze_portfolio_csv(raw)
-    except Exception as exc:
+    except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
 @router.get("/tax/compare")

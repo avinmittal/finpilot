@@ -10,6 +10,7 @@ backend/.mypy_cache/
 frontend/node_modules/
 frontend/dist/
 frontend/.env
+frontend/tsconfig.tsbuildinfo
 .next/
 
 # OS

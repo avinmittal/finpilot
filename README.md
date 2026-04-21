@@ -1,12 +1,23 @@
 # FinPilot v2
 
-AI-powered financial copilot for India with:
+FinPilot is an AI-powered financial copilot for Indian households, combining
+conversational guidance, calculators, portfolio diagnostics, and tax intelligence.
+
+The product is education-first. Financial math is handled by deterministic backend
+services, while the LLM orchestrates guidance, asks clarifying questions, and uses
+tools when calculations are needed.
+
+Implemented capabilities:
+
+- User registration and login with JWT auth
+- Saved financial profile reused in chat answers
 - OpenAI Responses API integration
-- JWT auth
-- Saved financial profile
-- React chat UI
-- SIP, loan-vs-invest, and Indian tax-regime calculators
-- Portfolio CSV upload analyzer
+- Explicit backend tool registry for financial calculators
+- SIP future value calculator
+- Loan prepayment vs investing comparison
+- Simplified Indian old-vs-new tax regime comparison
+- Portfolio CSV upload analyzer with allocation and concentration diagnostics
+- React/Vite dashboard with chat, profile, tax, and portfolio workspaces
 
 ## Stack
 
@@ -14,7 +25,24 @@ AI-powered financial copilot for India with:
 - Backend: FastAPI + SQLAlchemy + SQLite
 - AI: OpenAI Responses API with tool calling
 - Auth: JWT
-- Styling: simple CSS
+- Styling: custom CSS with a premium fintech dashboard direction
+
+## Project structure
+
+```text
+backend/app/
+  api/          FastAPI routers
+  core/         configuration
+  db/           SQLAlchemy session setup
+  models/       persistence models
+  schemas/      Pydantic request/response schemas
+  services/     deterministic calculators, AI orchestration, portfolio analysis
+
+frontend/src/
+  App.tsx       authenticated product shell and screens
+  api.ts        typed API client
+  styles.css    application styling
+```
 
 ## Quick start
 
@@ -38,6 +66,28 @@ npm run dev
 
 Frontend runs at `http://localhost:5173` and backend at `http://localhost:8000`.
 
+### Docker Compose
+
+```bash
+docker compose up --build
+```
+
+## Tests
+
+Backend:
+
+```bash
+cd backend
+pytest
+```
+
+Frontend type/build check:
+
+```bash
+cd frontend
+npm run build
+```
+
 ## Environment
 
 Add your key in `backend/.env`:
@@ -45,6 +95,8 @@ Add your key in `backend/.env`:
 OPENAI_API_KEY=your_key_here
 OPENAI_MODEL=gpt-5
 JWT_SECRET=replace-me
+DATABASE_URL=sqlite:///./data/finpilot.db
+FRONTEND_ORIGIN=http://localhost:5173
 ```
 
 ## Example questions
@@ -56,9 +108,9 @@ JWT_SECRET=replace-me
 ## Portfolio upload format
 
 Upload CSV with columns such as:
-- `name`
-- `asset_class`
-- `value`
+- name columns: `name`, `holding`, `security`, `instrument`, `symbol`, `scheme`
+- asset columns: `asset_class`, `asset`, `category`, `type`
+- value columns: `value`, `current_value`, `market_value`, `amount`, `nav_value`
 
 Example:
 ```csv
@@ -72,3 +124,5 @@ Gold ETF,gold,50000
 
 - This project is education-first and avoids security-specific buy/sell recommendations.
 - The tax calculator is simplified and does not include every edge case, surcharge, or marginal relief.
+- SQLite is the default for local development. The SQLAlchemy setup is intentionally simple so it can later move to Postgres with `DATABASE_URL`.
+- Do not put secrets in source control. Use `.env` locally and deployment environment variables in production.

@@ -11,19 +11,73 @@ export type Profile = {
   notes?: string | null;
 };
 
-function authHeaders() {
+export type ChatItem = { role: string; content: string; created_at?: string };
+
+export type TaxRegimeBreakdown = {
+  regime: "old" | "new";
+  label: string;
+  annual_salary: number;
+  standard_deduction: number;
+  additional_deductions: number;
+  taxable_income: number;
+  base_tax: number;
+  cess: number;
+  total_tax: number;
+  effective_rate_pct: number;
+  note: string;
+};
+
+export type TaxComparison = {
+  annual_salary: number;
+  deductions_old_regime: number;
+  standard_deduction: number;
+  old_regime: TaxRegimeBreakdown;
+  new_regime: TaxRegimeBreakdown;
+  better_regime: "old" | "new";
+  estimated_savings: number;
+  summary: string;
+  disclaimer: string;
+};
+
+export type PortfolioAnalysis = {
+  total_value: number;
+  holdings_count: number;
+  allocation: Record<string, number>;
+  allocation_summary: Array<{ asset_class: string; value: number; percentage: number }>;
+  concentration: {
+    top_3_pct: number;
+    top_5_pct: number;
+    largest_holding_pct: number;
+    risk_level: "low" | "moderate" | "high";
+  };
+  concentration_top_3_pct: number;
+  top_holdings: Array<{
+    name: string;
+    asset_class: string;
+    value: number;
+    percentage: number;
+  }>;
+  diagnostics: string[];
+};
+
+function authHeaders(): Record<string, string> {
   const token = localStorage.getItem("finpilot_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...authHeaders(),
+  };
+
+  if (init?.headers) {
+    Object.assign(headers, init.headers);
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-      ...authHeaders(),
-    },
+    headers,
   });
   if (!res.ok) {
     const maybeJson = await res.json().catch(() => null);
@@ -52,10 +106,10 @@ export const api = {
   sendChat: (message: string) =>
     request<{ reply: string }>("/chat", { method: "POST", body: JSON.stringify({ message }) }),
 
-  getHistory: () => request<Array<{ role: string; content: string; created_at: string }>>("/chat/history"),
+  getHistory: () => request<ChatItem[]>("/chat/history"),
 
   compareTax: (annual_salary: number, deductions_old_regime: number) =>
-    request<any>(`/tools/tax/compare?annual_salary=${annual_salary}&deductions_old_regime=${deductions_old_regime}`),
+    request<TaxComparison>(`/tools/tax/compare?annual_salary=${annual_salary}&deductions_old_regime=${deductions_old_regime}`),
 
   analyzePortfolio: async (file: File) => {
     const form = new FormData();
@@ -69,6 +123,6 @@ export const api = {
       const maybeJson = await res.json().catch(() => null);
       throw new Error(maybeJson?.detail || "Upload failed");
     }
-    return res.json();
+    return res.json() as Promise<PortfolioAnalysis>;
   },
 };

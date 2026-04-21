@@ -1,79 +1,10 @@
 import json
-import os
 import re
 from openai import OpenAI
 from app.core.config import settings
 from app.services.calculators import sip_future_value, loan_vs_invest, compare_tax_regimes
-
-SYSTEM_PROMPT = """
-You are FinPilot, an educational financial copilot for India.
-Rules:
-- Be practical and concise.
-- Use tools for math.
-- Do not provide direct buy/sell security recommendations.
-- Use the user's financial profile context if provided.
-- When relevant, explain assumptions.
-"""
-
-TOOLS = [
-    {
-        "type": "function",
-        "name": "sip_future_value",
-        "description": "Calculate future value of a monthly SIP investment.",
-        "strict": True,
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "monthly_investment": {"type": "number"},
-                "annual_return_pct": {"type": "number"},
-                "years": {"type": "integer"}
-            },
-            "required": ["monthly_investment", "annual_return_pct", "years"],
-            "additionalProperties": False
-        }
-    },
-    {
-        "type": "function",
-        "name": "loan_vs_invest",
-        "description": "Compare loan prepayment vs investing a lump sum.",
-        "strict": True,
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "lump_sum": {"type": "number"},
-                "loan_rate_pct": {"type": "number"},
-                "expected_return_pct": {"type": "number"},
-                "years": {"type": "integer"}
-            },
-            "required": ["lump_sum", "loan_rate_pct", "expected_return_pct", "years"],
-            "additionalProperties": False
-        }
-    },
-    {
-        "type": "function",
-        "name": "compare_tax_regimes",
-        "description": "Compare simplified Indian old and new income tax regimes.",
-        "strict": True,
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "annual_salary": {"type": "number"},
-                "deductions_old_regime": {"type": "number"}
-            },
-            "required": ["annual_salary", "deductions_old_regime"],
-            "additionalProperties": False
-        }
-    }
-]
-
-def _run_tool(name: str, args: dict) -> dict:
-    if name == "sip_future_value":
-        return sip_future_value(**args)
-    if name == "loan_vs_invest":
-        return loan_vs_invest(**args)
-    if name == "compare_tax_regimes":
-        return compare_tax_regimes(**args)
-    raise ValueError(f"Unknown tool: {name}")
+from app.services.prompts import FINPILOT_SYSTEM_PROMPT, build_user_prompt
+from app.services.tool_registry import openai_tool_schemas, run_tool
 
 def _fallback_response(message: str, profile_context: str = "") -> str:
     m = message.lower()
@@ -118,22 +49,21 @@ def generate_financial_response(message: str, profile: dict | None = None) -> st
 
     client = OpenAI(api_key=settings.openai_api_key)
     initial_input = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"User profile context: {profile_context}\n\nUser message: {message}"}
+        {"role": "system", "content": FINPILOT_SYSTEM_PROMPT},
+        {"role": "user", "content": build_user_prompt(message, profile_context)}
     ]
 
     response = client.responses.create(
         model=settings.openai_model,
         input=initial_input,
-        tools=TOOLS,
+        tools=openai_tool_schemas(),
     )
 
     tool_outputs = []
     for item in response.output:
         if getattr(item, "type", None) != "function_call":
             continue
-        args = json.loads(item.arguments)
-        result = _run_tool(item.name, args)
+        result = run_tool(item.name, item.arguments)
         tool_outputs.append({
             "type": "function_call_output",
             "call_id": item.call_id,
