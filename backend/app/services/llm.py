@@ -1,6 +1,6 @@
 import json
 import re
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 from app.core.config import settings
 from app.services.calculators import sip_future_value, loan_vs_invest, compare_tax_regimes
 from app.services.prompts import FINPILOT_SYSTEM_PROMPT, build_user_prompt
@@ -53,11 +53,14 @@ def generate_financial_response(message: str, profile: dict | None = None) -> st
         {"role": "user", "content": build_user_prompt(message, profile_context)}
     ]
 
-    response = client.responses.create(
-        model=settings.openai_model,
-        input=initial_input,
-        tools=openai_tool_schemas(),
-    )
+    try:
+        response = client.responses.create(
+            model=settings.openai_model,
+            input=initial_input,
+            tools=openai_tool_schemas(),
+        )
+    except OpenAIError:
+        return _fallback_response(message, profile_context)
 
     tool_outputs = []
     for item in response.output:
@@ -71,10 +74,13 @@ def generate_financial_response(message: str, profile: dict | None = None) -> st
         })
 
     if tool_outputs:
-        final_response = client.responses.create(
-            model=settings.openai_model,
-            input=initial_input + response.output + tool_outputs,
-        )
-        return final_response.output_text
+        try:
+            final_response = client.responses.create(
+                model=settings.openai_model,
+                input=initial_input + response.output + tool_outputs,
+            )
+            return final_response.output_text
+        except OpenAIError:
+            return _fallback_response(message, profile_context)
 
     return response.output_text
