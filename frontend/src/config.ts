@@ -9,11 +9,3 @@ export function getApiBase() {
     DEFAULT_API_BASE
   ).replace(/\/$/, "");
 }
-
-export function setApiBase(value: string) {
-  localStorage.setItem(API_BASE_STORAGE_KEY, value.replace(/\/$/, ""));
-}
-
-export function clearApiBase() {
-  localStorage.removeItem(API_BASE_STORAGE_KEY);
-}

@@ -7,7 +7,6 @@ import {
   TaxComparison,
   TaxRegimeBreakdown,
 } from "./api";
-import { getApiBase, setApiBase } from "./config";
 
 type ToolResult =
   | { kind: "tax"; data: TaxComparison }
@@ -56,7 +55,6 @@ function App() {
   const [taxSalary, setTaxSalary] = useState("2400000");
   const [taxDeduction, setTaxDeduction] = useState("150000");
   const [portfolioFile, setPortfolioFile] = useState<File | null>(null);
-  const [apiBase, setApiBaseState] = useState(getApiBase());
 
   const isLoggedIn = mode === "app";
 
@@ -177,11 +175,6 @@ function App() {
     window.location.reload();
   }
 
-  function updateApiBase(value: string) {
-    setApiBaseState(value);
-    setApiBase(value);
-  }
-
   const dashboardStats = useMemo(() => {
     const monthlyExpenses = Number(profile?.monthly_expenses || 0);
     const annualSalary = Number(profile?.annual_salary || 0);
@@ -225,10 +218,6 @@ function App() {
               Password
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
             </label>
-            <label>
-              API endpoint
-              <input value={apiBase} onChange={(e) => updateApiBase(e.target.value)} />
-            </label>
             <button type="submit">{authTab === "login" ? "Login" : "Create account"}</button>
           </form>
           {authError && <div className="error">{authError}</div>}
@@ -258,10 +247,6 @@ function App() {
         </nav>
         <div className="account-block">
           <div className="small muted-inverse">{localStorage.getItem("finpilot_email")}</div>
-          <label className="api-setting">
-            API endpoint
-            <input value={apiBase} onChange={(e) => updateApiBase(e.target.value)} />
-          </label>
           <button className="secondary" onClick={logout}>Logout</button>
         </div>
       </aside>
