@@ -5,7 +5,6 @@ try:
 except ModuleNotFoundError:  # Allows deterministic fallback tests without OpenAI installed.
     OpenAI = None
     OpenAIError = Exception
-from app.core.config import settings
 from app.services.calculators import sip_future_value, loan_vs_invest, compare_tax_regimes
 from app.services.prompts import FINPILOT_SYSTEM_PROMPT, build_user_prompt
 from app.services.tool_registry import openai_tool_schemas, run_tool
@@ -15,25 +14,32 @@ def _fallback_response(message: str, profile_context: str = "") -> str:
 
     amount = r"([\d,]+(?:\.\d+)?)"
     pct = r"(\d+(?:\.\d+)?)\s*%"
-    years = r"(\d+)\s*year"
+    years = r"(\d+)\s*-?\s*year"
+
+    def sip_reply(monthly_investment: float, annual_return_pct: float, duration_years: int) -> str:
+        result = sip_future_value(monthly_investment, annual_return_pct, duration_years)
+        return (
+            f"Based on a monthly SIP of ₹{result['monthly_investment']:,.0f} for {result['years']} years at "
+            f"{result['annual_return_pct']}%, total invested is about ₹{result['total_invested']:,.0f} and "
+            f"future value may be about ₹{result['future_value']:,.0f}. "
+            "Use this as an education-first projection, not a guaranteed return."
+        )
 
     sip = re.search(amount + r"\s*(?:per month|/month).*?" + pct + r".*?" + years, m)
     if sip:
-        result = sip_future_value(float(sip.group(1).replace(",", "")), float(sip.group(2)), int(sip.group(3)))
-        return (
-            f"Based on a monthly SIP of ₹{result['monthly_investment']:,.0f} for {result['years']} years at "
-            f"{result['annual_return_pct']}%, total invested is about ₹{result['total_invested']:,.0f} and "
-            f"future value may be about ₹{result['future_value']:,.0f}."
-        )
+        return sip_reply(float(sip.group(1).replace(",", "")), float(sip.group(2)), int(sip.group(3)))
 
     sip = re.search(amount + r"\s*(?:per month|/month).*?" + years + r".*?" + pct, m)
     if sip:
-        result = sip_future_value(float(sip.group(1).replace(",", "")), float(sip.group(3)), int(sip.group(2)))
-        return (
-            f"Based on a monthly SIP of ₹{result['monthly_investment']:,.0f} for {result['years']} years at "
-            f"{result['annual_return_pct']}%, total invested is about ₹{result['total_invested']:,.0f} and "
-            f"future value may be about ₹{result['future_value']:,.0f}."
-        )
+        return sip_reply(float(sip.group(1).replace(",", "")), float(sip.group(3)), int(sip.group(2)))
+
+    sip = re.search(years + r".*?" + amount + r"\s*(?:per month|/month).*?" + pct, m)
+    if sip:
+        return sip_reply(float(sip.group(2).replace(",", "")), float(sip.group(3)), int(sip.group(1)))
+
+    sip = re.search(years + r".*?" + pct + r".*?" + amount + r"\s*(?:per month|/month)", m)
+    if sip:
+        return sip_reply(float(sip.group(3).replace(",", "")), float(sip.group(2)), int(sip.group(1)))
 
     loan = re.search(r"(\d+(?:\.\d+)?).*?(?:loan).*?(\d+(?:\.\d+)?)\s*%.*?(?:invest).*?(\d+(?:\.\d+)?)\s*%.*?(\d+)\s*year", m)
     if loan:
@@ -60,6 +66,8 @@ def _fallback_response(message: str, profile_context: str = "") -> str:
     )
 
 def generate_financial_response(message: str, profile: dict | None = None) -> str:
+    from app.core.config import settings
+
     profile_context = json.dumps(profile or {}, ensure_ascii=False)
     if not settings.openai_api_key or OpenAI is None:
         return _fallback_response(message, profile_context)
