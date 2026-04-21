@@ -1,6 +1,10 @@
 import json
 import re
-from openai import OpenAI, OpenAIError
+try:
+    from openai import OpenAI, OpenAIError
+except ModuleNotFoundError:  # Allows deterministic fallback tests without OpenAI installed.
+    OpenAI = None
+    OpenAIError = Exception
 from app.core.config import settings
 from app.services.calculators import sip_future_value, loan_vs_invest, compare_tax_regimes
 from app.services.prompts import FINPILOT_SYSTEM_PROMPT, build_user_prompt
@@ -9,9 +13,22 @@ from app.services.tool_registry import openai_tool_schemas, run_tool
 def _fallback_response(message: str, profile_context: str = "") -> str:
     m = message.lower()
 
-    sip = re.search(r"(\d+(?:\.\d+)?)\s*(?:per month|/month).*?(\d+(?:\.\d+)?)\s*%.*?(\d+)\s*year", m)
+    amount = r"([\d,]+(?:\.\d+)?)"
+    pct = r"(\d+(?:\.\d+)?)\s*%"
+    years = r"(\d+)\s*year"
+
+    sip = re.search(amount + r"\s*(?:per month|/month).*?" + pct + r".*?" + years, m)
     if sip:
-        result = sip_future_value(float(sip.group(1)), float(sip.group(2)), int(sip.group(3)))
+        result = sip_future_value(float(sip.group(1).replace(",", "")), float(sip.group(2)), int(sip.group(3)))
+        return (
+            f"Based on a monthly SIP of ₹{result['monthly_investment']:,.0f} for {result['years']} years at "
+            f"{result['annual_return_pct']}%, total invested is about ₹{result['total_invested']:,.0f} and "
+            f"future value may be about ₹{result['future_value']:,.0f}."
+        )
+
+    sip = re.search(amount + r"\s*(?:per month|/month).*?" + years + r".*?" + pct, m)
+    if sip:
+        result = sip_future_value(float(sip.group(1).replace(",", "")), float(sip.group(3)), int(sip.group(2)))
         return (
             f"Based on a monthly SIP of ₹{result['monthly_investment']:,.0f} for {result['years']} years at "
             f"{result['annual_return_pct']}%, total invested is about ₹{result['total_invested']:,.0f} and "
@@ -44,7 +61,7 @@ def _fallback_response(message: str, profile_context: str = "") -> str:
 
 def generate_financial_response(message: str, profile: dict | None = None) -> str:
     profile_context = json.dumps(profile or {}, ensure_ascii=False)
-    if not settings.openai_api_key:
+    if not settings.openai_api_key or OpenAI is None:
         return _fallback_response(message, profile_context)
 
     client = OpenAI(api_key=settings.openai_api_key)
