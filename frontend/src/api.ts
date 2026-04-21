@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api";
+import { getApiBase } from "./config";
 
 export type AuthResponse = { access_token: string; token_type: string; email: string };
 export type Profile = {
@@ -75,7 +75,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     Object.assign(headers, init.headers);
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${getApiBase()}${path}`, {
     ...init,
     headers,
   });
@@ -114,7 +114,7 @@ export const api = {
   analyzePortfolio: async (file: File) => {
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch(`${API_BASE}/tools/portfolio/analyze`, {
+    const res = await fetch(`${getApiBase()}/tools/portfolio/analyze`, {
       method: "POST",
       headers: { ...authHeaders() },
       body: form,

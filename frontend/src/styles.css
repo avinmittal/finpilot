@@ -231,6 +231,18 @@ p {
   gap: 10px;
 }
 
+.api-setting {
+  color: #b8c8c1;
+  font-size: 12px;
+}
+
+.api-setting input {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 12px;
+}
+
 .content {
   width: min(1480px, 100%);
   padding: 30px;

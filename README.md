@@ -66,6 +66,38 @@ npm run dev
 
 Frontend runs at `http://localhost:5173` and backend at `http://localhost:8000`.
 
+## GitHub Pages frontend
+
+This repo includes a GitHub Actions workflow at `.github/workflows/deploy-pages.yml`.
+On every push to `main`, it builds `frontend/` and deploys the static app to:
+
+```text
+https://avinmittal.github.io/finpilot/
+```
+
+In GitHub, enable Pages with:
+
+```text
+Settings -> Pages -> Build and deployment -> Source: GitHub Actions
+```
+
+The static frontend cannot host the FastAPI backend. To test the full app from
+GitHub Pages, run or deploy the backend separately and set the API endpoint in
+the login screen/sidebar. For local backend testing, use:
+
+```text
+http://localhost:8000/api
+```
+
+For a deployed backend, use its HTTPS API URL, for example:
+
+```text
+https://your-finpilot-api.example.com/api
+```
+
+The backend CORS defaults include `https://avinmittal.github.io`. If you deploy
+the frontend elsewhere, add that origin to `FRONTEND_ORIGINS`.
+
 ### Docker Compose
 
 ```bash
