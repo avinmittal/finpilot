@@ -83,7 +83,15 @@ Settings -> Pages -> Build and deployment -> Source: GitHub Actions
 
 The static frontend cannot host the FastAPI backend. To test the full app from
 GitHub Pages, run or deploy the backend separately and set the API endpoint in
-the login screen/sidebar. For local backend testing, use:
+the login screen/sidebar.
+
+The current hosted backend endpoint is:
+
+```text
+https://finpilot-api-iz93.onrender.com/api
+```
+
+For local backend testing, use:
 
 ```text
 http://localhost:8000/api
